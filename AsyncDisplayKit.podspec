@@ -1,72 +1,69 @@
 Pod::Spec.new do |spec|
   spec.name         = 'AsyncDisplayKit'
-  spec.version      = '2.0-beta.1'
+  spec.version      = '2.2'
   spec.license      =  { :type => 'BSD' }
   spec.homepage     = 'http://asyncdisplaykit.org'
-  spec.authors      = { 'Scott Goodson' => 'scottgoodson@gmail.com', 'Ryan Nystrom' => 'rnystrom@fb.com' }
+  spec.authors      = { 'Scott Goodson' => 'scottgoodson@gmail.com' }
   spec.summary      = 'Smooth asynchronous user interfaces for iOS apps.'
-  spec.source       = { :git => 'https://github.com/facebook/AsyncDisplayKit.git', :tag => '1.9.90' }
+  spec.source       = { :git => 'https://github.com/facebook/AsyncDisplayKit.git', :tag => spec.version.to_s }
+  spec.deprecated_in_favor_of = 'Texture'
 
   spec.documentation_url = 'http://asyncdisplaykit.org/appledoc/'
 
-  spec.frameworks = 'AssetsLibrary'
-  spec.weak_frameworks = 'Photos','MapKit'
+  spec.weak_frameworks = 'Photos','MapKit','AssetsLibrary'
   spec.requires_arc = true
 
-  spec.ios.deployment_target = '7.0'
+  spec.ios.deployment_target = '8.0'
 
-  # Uncomment when fixed: issues with tvOS build for release 1.9.8
+  # Uncomment when fixed: issues with tvOS build for release 2.0
   # spec.tvos.deployment_target = '9.0'
 
   # Subspecs
   spec.subspec 'Core' do |core|
     core.public_header_files = [
-        'AsyncDisplayKit/*.h',
-        'AsyncDisplayKit/Details/**/*.h',
-        'AsyncDisplayKit/Layout/*.h',
-        'Base/*.h',
-        'AsyncDisplayKit/TextKit/ASTextNodeTypes.h',
-        'AsyncDisplayKit/TextKit/ASTextKitComponents.h'
+        'Source/*.h',
+        'Source/Details/**/*.h',
+        'Source/Layout/**/*.h',
+        'Source/Base/*.h',
+        'Source/Debug/AsyncDisplayKit+Debug.h',
+        'Source/TextKit/ASTextNodeTypes.h',
+        'Source/TextKit/ASTextKitComponents.h'
     ]
     
-    # ASDealloc2MainObject must be compiled with MRR
-    core.exclude_files = [
-      'AsyncDisplayKit/Private/_AS-objc-internal.h',
-      'AsyncDisplayKit/Details/ASDealloc2MainObject.h',
-      'AsyncDisplayKit/Details/ASDealloc2MainObject.m',
-    ]
     core.source_files = [
-        'AsyncDisplayKit/**/*.{h,m,mm}',
+        'Source/**/*.{h,m,mm}',
         'Base/*.{h,m}',
       
         # Most TextKit components are not public because the C++ content
         # in the headers will cause build errors when using
         # `use_frameworks!` on 0.39.0 & Swift 2.1.
         # See https://github.com/facebook/AsyncDisplayKit/issues/1153
-        'AsyncDisplayKit/TextKit/*.h',
+        'Source/TextKit/*.h',
     ]
-    core.dependency  'AsyncDisplayKit/ASDealloc2MainObject'
-  end
-  
-  spec.subspec 'ASDealloc2MainObject' do |mrr|
-    mrr.requires_arc = false
-    mrr.source_files = [
-      'AsyncDisplayKit/Private/_AS-objc-internal.h',
-      'AsyncDisplayKit/Details/ASDealloc2MainObject.h',
-      'AsyncDisplayKit/Details/ASDealloc2MainObject.m',
-    ]
+    core.xcconfig = { 'GCC_PRECOMPILE_PREFIX_HEADER' => 'YES' }
   end
   
   spec.subspec 'PINRemoteImage' do |pin|
-      pin.xcconfig = { 'GCC_PREPROCESSOR_DEFINITIONS' => '$(inherited) PIN_REMOTE_IMAGE=1' }
-      pin.dependency 'PINRemoteImage/iOS', '>= 3.0.0-beta.3'
+      pin.dependency 'PINRemoteImage/iOS', '= 3.0.0-beta.9'
+      pin.dependency 'PINRemoteImage/PINCache'
       pin.dependency 'AsyncDisplayKit/Core'
   end
+
+  spec.subspec 'IGListKit' do |igl|
+      igl.dependency 'IGListKit', '2.1.0'
+      igl.dependency 'AsyncDisplayKit/Core'
+  end
   
+  spec.subspec 'Yoga' do |yoga|
+      yoga.xcconfig = { 'GCC_PREPROCESSOR_DEFINITIONS' => '$(inherited) YOGA=1' }
+      yoga.dependency 'Yoga', '1.0.2'
+      yoga.dependency 'AsyncDisplayKit/Core'
+  end
+
   # Include optional PINRemoteImage module
   spec.default_subspec = 'PINRemoteImage'
 
-  spec.social_media_url = 'https://twitter.com/fbOpenSource'
+  spec.social_media_url = 'https://twitter.com/AsyncDisplayKit'
   spec.library = 'c++'
   spec.pod_target_xcconfig = {
        'CLANG_CXX_LANGUAGE_STANDARD' => 'c++11',

@@ -2,7 +2,7 @@ language: objective-c
 cache:
   - bundler
   - cocoapods
-osx_image: xcode8
+osx_image: xcode8.1
 git:
   depth: 10
 before_install:
@@ -17,6 +17,7 @@ before_install:
 install: echo "<3"
 env:
   - MODE=tests
+  - MODE=tests_listkit
   - MODE=examples-pt1
   - MODE=examples-pt2
   - MODE=examples-pt3

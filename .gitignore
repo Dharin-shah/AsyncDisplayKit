@@ -24,3 +24,13 @@ build
 *.gcov
 *.gcno
 *.gcda
+
+## Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Buck
+/buck-out
+/.buckconfig.local
+/.buckd
+

@@ -53,6 +53,7 @@
   
   _textNodeTwo = [[ASTextNode alloc] init];
   _textNodeTwo.attributedText = [[NSAttributedString  alloc] initWithString:@"It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English."];
+  ASSetDebugNames(_textNodeOne, _textNodeTwo);
   
   // Setup button
   NSString *buttonTitle = @"Start Layout Transition";
@@ -60,12 +61,8 @@
   UIColor *buttonColor = [UIColor blueColor];
   
   _buttonNode = [[ASButtonNode alloc] init];
-  [_buttonNode setTitle:buttonTitle withFont:buttonFont withColor:buttonColor forState:ASControlStateNormal];
-  
-  // Note: Currently we have to set all the button properties to the same one as for ASControlStateNormal. Otherwise
-  //       if the button is involved in the layout transition it would break the transition as it does a layout pass
-  //       while changing the title. This needs and will be fixed in the future!
-  [_buttonNode setTitle:buttonTitle withFont:buttonFont withColor:buttonColor forState:ASControlStateHighlighted];
+  [_buttonNode setTitle:buttonTitle withFont:buttonFont withColor:buttonColor forState:UIControlStateNormal];
+  [_buttonNode setTitle:buttonTitle withFont:buttonFont withColor:[buttonColor colorWithAlphaComponent:0.5] forState:UIControlStateHighlighted];
   
   
   // Some debug colors
@@ -80,7 +77,7 @@
 {
   [super didLoad];
   
-  [self.buttonNode addTarget:self action:@selector(buttonPressed:) forControlEvents:ASControlNodeEventTouchDown];
+  [self.buttonNode addTarget:self action:@selector(buttonPressed:) forControlEvents:ASControlNodeEventTouchUpInside];
 }
 
 #pragma mark - Actions
@@ -88,7 +85,6 @@
 - (void)buttonPressed:(id)sender
 {
   self.enabled = !self.enabled;
-  
   [self transitionLayoutWithAnimation:YES shouldMeasureAsync:NO measurementCompletion:nil];
 }
 
@@ -98,8 +94,8 @@
 - (ASLayoutSpec *)layoutSpecThatFits:(ASSizeRange)constrainedSize
 {
   ASTextNode *nextTextNode = self.enabled ? self.textNodeTwo : self.textNodeOne;
-  nextTextNode.style.flexGrow = YES;
-  nextTextNode.style.flexShrink = YES;
+  nextTextNode.style.flexGrow = 1.0;
+  nextTextNode.style.flexShrink = 1.0;
   
   ASStackLayoutSpec *horizontalStackLayout = [ASStackLayoutSpec horizontalStackLayoutSpec];
   horizontalStackLayout.children = @[nextTextNode];

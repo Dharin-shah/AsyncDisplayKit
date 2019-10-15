@@ -50,6 +50,8 @@
     if (self) {
         _post = post;
         
+        self.selectionStyle = UITableViewCellSelectionStyleNone;
+
         // Name node
         _nameNode = [[ASTextNode alloc] init];
         _nameNode.attributedText = [[NSAttributedString alloc] initWithString:_post.name attributes:[TextStyles nameStyle]];
@@ -59,7 +61,7 @@
         // Username node
         _usernameNode = [[ASTextNode alloc] init];
         _usernameNode.attributedText = [[NSAttributedString alloc] initWithString:_post.username attributes:[TextStyles usernameStyle]];
-        _usernameNode.style.flexShrink = YES; //if name and username don't fit to cell width, allow username shrink
+        _usernameNode.style.flexShrink = 1.0; //if name and username don't fit to cell width, allow username shrink
         _usernameNode.truncationMode = NSLineBreakByTruncatingTail;
         _usernameNode.maximumNumberOfLines = 1;
         [self addSubnode:_usernameNode];
@@ -180,6 +182,10 @@
         _optionsNode = [[ASImageNode alloc] init];
         _optionsNode.image = [UIImage imageNamed:@"icon_more"];
         [self addSubnode:_optionsNode];
+
+        for (ASDisplayNode *node in self.subnodes) {
+            node.layerBacked = YES;
+        }
     }
     return self;
 }
@@ -210,18 +216,10 @@
 {
     // Flexible spacer between username and time
     ASLayoutSpec *spacer = [[ASLayoutSpec alloc] init];
-    spacer.style.flexGrow = YES;
-  
-    // NOTE: This inset is not actually required by the layout, but is an example of the upward propogation of layoutable
-    // properties.  Specifically, .flexGrow from the child is transferred to the inset spec so they can expand together.
-    // Without this capability, it would be required to set insetSpacer.flexGrow = YES;
-    ASInsetLayoutSpec *insetSpacer =
-    [ASInsetLayoutSpec
-     insetLayoutSpecWithInsets:UIEdgeInsetsMake(0, 0, 0, 0)
-     child:spacer];
+    spacer.style.flexGrow = 1.0;
   
     // Horizontal stack for name, username, via icon and time
-    NSMutableArray *layoutSpecChildren = [@[_nameNode, _usernameNode, insetSpacer] mutableCopy];
+    NSMutableArray *layoutSpecChildren = [@[_nameNode, _usernameNode, spacer] mutableCopy];
     if (_post.via != 0) {
         [layoutSpecChildren addObject:_viaNode];
     }
@@ -258,10 +256,9 @@
         
         // Only add the media node if an image is present
         if (_mediaNode.image != nil) {
-            CGFloat imageRatio = (_mediaNode.image != nil ? _mediaNode.image.size.height / _mediaNode.image.size.width : 0.5);
             ASRatioLayoutSpec *imagePlace =
             [ASRatioLayoutSpec
-             ratioLayoutSpecWithRatio:imageRatio
+             ratioLayoutSpecWithRatio:0.5
              child:_mediaNode];
             imagePlace.style.spacingAfter = 3.0;
             imagePlace.style.spacingBefore = 3.0;
@@ -279,7 +276,7 @@
      justifyContent:ASStackLayoutJustifyContentStart
      alignItems:ASStackLayoutAlignItemsStretch
      children:mainStackContent];
-    contentSpec.style.flexShrink = YES;
+    contentSpec.style.flexShrink = 1.0;
     
     // Horizontal spec for avatar
     ASStackLayoutSpec *avatarContentSpec =

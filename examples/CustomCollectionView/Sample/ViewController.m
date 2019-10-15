@@ -20,14 +20,17 @@
 #import <AsyncDisplayKit/AsyncDisplayKit.h>
 #import "MosaicCollectionViewLayout.h"
 #import "ImageCellNode.h"
+#import "ImageCollectionViewCell.h"
 
+// This option demonstrates that raw UIKit cells can still be used alongside native ASCellNodes.
+static BOOL kShowUICollectionViewCells = YES;
+static NSString *kReuseIdentifier = @"ImageCollectionViewCell";
 static NSUInteger kNumberOfImages = 14;
 
-@interface ViewController () <ASCollectionViewDataSource, MosaicCollectionViewLayoutDelegate>
+@interface ViewController () <ASCollectionDataSourceInterop, ASCollectionDelegate, ASCollectionViewLayoutInspecting>
 {
   NSMutableArray *_sections;
-  ASCollectionView *_collectionView;
-  MosaicCollectionViewLayoutInspector *_layoutInspector;
+  ASCollectionNode *_collectionNode;
 }
 
 @end
@@ -35,11 +38,20 @@ static NSUInteger kNumberOfImages = 14;
 @implementation ViewController
 
 #pragma mark -
-#pragma mark UIViewController.
+#pragma mark UIViewController
 
 - (instancetype)init
 {
-  if (!(self = [super init]))
+  MosaicCollectionViewLayout *layout = [[MosaicCollectionViewLayout alloc] init];
+  layout.numberOfColumns = 2;
+  layout.headerHeight = 44.0;
+  
+  _collectionNode = [[ASCollectionNode alloc] initWithCollectionViewLayout:layout];
+  _collectionNode.dataSource = self;
+  _collectionNode.delegate = self;
+  _collectionNode.backgroundColor = [UIColor whiteColor];
+  
+  if (!(self = [super initWithNode:_collectionNode]))
     return nil;
   
   _sections = [NSMutableArray array];
@@ -53,51 +65,33 @@ static NSUInteger kNumberOfImages = 14;
     }
   }
   
-  MosaicCollectionViewLayout *layout = [[MosaicCollectionViewLayout alloc] init];
-  layout.numberOfColumns = 2;
-  layout.headerHeight = 44.0;
-  
-  _layoutInspector = [[MosaicCollectionViewLayoutInspector alloc] init];
-  
-  _collectionView = [[ASCollectionView alloc] initWithFrame:CGRectZero collectionViewLayout:layout];
-  _collectionView.asyncDataSource = self;
-  _collectionView.asyncDelegate = self;
-  _collectionView.layoutInspector = _layoutInspector;
-  _collectionView.backgroundColor = [UIColor whiteColor];
-  
-  [_collectionView registerSupplementaryNodeOfKind:UICollectionElementKindSectionHeader];
+  [_collectionNode registerSupplementaryNodeOfKind:UICollectionElementKindSectionHeader];
   
   return self;
-}
-
-- (void)dealloc
-{
-  _collectionView.asyncDataSource = nil;
-  _collectionView.asyncDelegate = nil;
 }
 
 - (void)viewDidLoad
 {
   [super viewDidLoad];
   
-  [self.view addSubview:_collectionView];
-}
-
-- (void)viewWillLayoutSubviews
-{
-  _collectionView.frame = self.view.bounds;
+  _collectionNode.view.layoutInspector = self;
+  [_collectionNode.view registerClass:[ImageCollectionViewCell class] forCellWithReuseIdentifier:kReuseIdentifier];
 }
 
 - (void)reloadTapped
 {
-  [_collectionView reloadData];
+  [_collectionNode reloadData];
 }
 
-#pragma mark -
-#pragma mark ASCollectionView data source.
+#pragma mark - ASCollectionNode data source.
 
-- (ASCellNodeBlock)collectionView:(ASCollectionView *)collectionView nodeBlockForItemAtIndexPath:(NSIndexPath *)indexPath
+- (ASCellNodeBlock)collectionNode:(ASCollectionNode *)collectionNode nodeBlockForItemAtIndexPath:(NSIndexPath *)indexPath
 {
+  if (kShowUICollectionViewCells && indexPath.item % 3 == 1) {
+    // When enabled, return nil for every third cell and then cellForItemAtIndexPath: will be called.
+    return nil;
+  }
+  
   UIImage *image = _sections[indexPath.section][indexPath.item];
   return ^{
     return [[ImageCellNode alloc] initWithImage:image];
@@ -105,7 +99,32 @@ static NSUInteger kNumberOfImages = 14;
 }
 
 
-- (ASCellNode *)collectionView:(ASCollectionView *)collectionView nodeForSupplementaryElementOfKind:(NSString *)kind atIndexPath:(NSIndexPath *)indexPath
+- (ASSizeRange)collectionView:(ASCollectionView *)collectionView constrainedSizeForNodeAtIndexPath:(NSIndexPath *)indexPath
+{
+  MosaicCollectionViewLayout *layout = (MosaicCollectionViewLayout *)[collectionView collectionViewLayout];
+  return ASSizeRangeMake(CGSizeZero, [layout itemSizeAtIndexPath:indexPath]);
+}
+
+- (ASSizeRange)collectionView:(ASCollectionView *)collectionView constrainedSizeForSupplementaryNodeOfKind:(NSString *)kind atIndexPath:(NSIndexPath *)indexPath
+{
+  MosaicCollectionViewLayout *layout = (MosaicCollectionViewLayout *)[collectionView collectionViewLayout];
+  return ASSizeRangeMake(CGSizeZero, [layout headerSizeForSection:indexPath.section]);
+}
+
+- (ASScrollDirection)scrollableDirections
+{
+  return ASScrollDirectionVerticalDirections;
+}
+
+/**
+ * Asks the inspector for the number of supplementary views for the given kind in the specified section.
+ */
+- (NSUInteger)collectionView:(ASCollectionView *)collectionView supplementaryNodesOfKind:(NSString *)kind inSection:(NSUInteger)section
+{
+  return [kind isEqualToString:UICollectionElementKindSectionHeader] ? 1 : 0;
+}
+
+- (ASCellNode *)collectionNode:(ASCollectionNode *)collectionNode nodeForSupplementaryElementOfKind:(NSString *)kind atIndexPath:(NSIndexPath *)indexPath
 {
   NSDictionary *textAttributes = @{
       NSFontAttributeName: [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline],
@@ -117,19 +136,34 @@ static NSUInteger kNumberOfImages = 14;
   return textCellNode;
 }
 
-- (NSInteger)numberOfSectionsInCollectionView:(UICollectionView *)collectionView
+- (NSInteger)numberOfSectionsInCollectionNode:(ASCollectionNode *)collectionNode
 {
   return _sections.count;
 }
 
-- (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section
+- (NSInteger)collectionNode:(ASCollectionNode *)collectionNode numberOfItemsInSection:(NSInteger)section
 {
   return [_sections[section] count];
 }
 
-- (CGSize)collectionView:(UICollectionView *)collectionView layout:(UICollectionViewLayout *)collectionViewLayout originalItemSizeAtIndexPath:(NSIndexPath *)indexPath
+- (CGSize)collectionView:(ASCollectionNode *)collectionNode layout:(UICollectionViewLayout *)collectionViewLayout originalItemSizeAtIndexPath:(NSIndexPath *)indexPath
 {
-  return [(UIImage *)_sections[indexPath.section][indexPath.item] size];
+  ASCellNode *cellNode = [collectionNode nodeForItemAtIndexPath:indexPath];
+  if ([cellNode isKindOfClass:[ImageCellNode class]]) {
+    return [[(ImageCellNode *)cellNode image] size];
+  } else {
+    return CGSizeMake(100, 100);  // In kShowUICollectionViewCells = YES mode, make those cells 100x100.
+  }
+}
+
+- (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath
+{
+  return [_collectionNode.view dequeueReusableCellWithReuseIdentifier:kReuseIdentifier forIndexPath:indexPath];
+}
+
+- (UICollectionReusableView *)collectionView:(UICollectionView *)collectionView viewForSupplementaryElementOfKind:(NSString *)kind atIndexPath:(NSIndexPath *)indexPath
+{
+  return nil;
 }
 
 @end

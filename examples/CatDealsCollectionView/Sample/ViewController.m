@@ -27,11 +27,10 @@ static const BOOL kSimulateWebResponse = YES;
 static const NSInteger kBatchSize = 20;
 
 static const CGFloat kHorizontalSectionPadding = 10.0f;
-static const CGFloat kVerticalSectionPadding = 20.0f;
 
-@interface ViewController () <ASCollectionViewDataSource, ASCollectionViewDelegateFlowLayout>
+@interface ViewController () <ASCollectionDataSource, ASCollectionDelegate, ASCollectionDelegateFlowLayout>
 {
-  ASCollectionView *_collectionView;
+  ASCollectionNode *_collectionNode;
   NSMutableArray *_data;
 }
 
@@ -45,32 +44,31 @@ static const CGFloat kVerticalSectionPadding = 20.0f;
 
 - (instancetype)init
 {
-  self = [super init];
+  UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
+  _collectionNode = [[ASCollectionNode alloc] initWithCollectionViewLayout:layout];
+
+  self = [super initWithNode:_collectionNode];
   
   if (self) {
     
     self.title = @"Cat Deals";
-    
-    UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
-    
-    _collectionView = [[ASCollectionView alloc] initWithFrame:CGRectZero collectionViewLayout:layout];
-    _collectionView.asyncDataSource = self;
-    _collectionView.asyncDelegate = self;
-    _collectionView.backgroundColor = [UIColor grayColor];
-    _collectionView.leadingScreensForBatching = 2;
+  
+    _collectionNode.dataSource = self;
+    _collectionNode.delegate = self;
+    _collectionNode.backgroundColor = [UIColor grayColor];
     
     ASRangeTuningParameters preloadTuning;
     preloadTuning.leadingBufferScreenfuls = 2;
     preloadTuning.trailingBufferScreenfuls = 1;
-    [_collectionView setTuningParameters:preloadTuning forRangeType:ASLayoutRangeTypePreload];
+    [_collectionNode setTuningParameters:preloadTuning forRangeType:ASLayoutRangeTypePreload];
     
-    ASRangeTuningParameters preRenderTuning;
-    preRenderTuning.leadingBufferScreenfuls = 1;
-    preRenderTuning.trailingBufferScreenfuls = 0.5;
-    [_collectionView setTuningParameters:preRenderTuning forRangeType:ASLayoutRangeTypeDisplay];
+    ASRangeTuningParameters displayTuning;
+    displayTuning.leadingBufferScreenfuls = 1;
+    displayTuning.trailingBufferScreenfuls = 0.5;
+    [_collectionNode setTuningParameters:displayTuning forRangeType:ASLayoutRangeTypeDisplay];
     
-    [_collectionView registerSupplementaryNodeOfKind:UICollectionElementKindSectionHeader];
-    [_collectionView registerSupplementaryNodeOfKind:UICollectionElementKindSectionFooter];
+    [_collectionNode registerSupplementaryNodeOfKind:UICollectionElementKindSectionHeader];
+    [_collectionNode registerSupplementaryNodeOfKind:UICollectionElementKindSectionFooter];
     
     _data = [[NSMutableArray alloc] init];
     
@@ -85,7 +83,8 @@ static const CGFloat kVerticalSectionPadding = 20.0f;
 {
   [super viewDidLoad];
   
-  [self.view addSubview:_collectionView];
+  // set any collectionView properties here (once the node's backing view is loaded)
+  _collectionNode.view.leadingScreensForBatching = 2;
   [self fetchMoreCatsWithCompletion:nil];
 }
 
@@ -115,10 +114,10 @@ static const CGFloat kVerticalSectionPadding = 20.0f;
 - (void)appendMoreItems:(NSInteger)numberOfNewItems completion:(void (^)(BOOL))completion {
   NSArray *newData = [self getMoreData:numberOfNewItems];
   dispatch_async(dispatch_get_main_queue(), ^{
-    [_collectionView performBatchUpdates:^{
+    [_collectionNode performBatchAnimated:YES updates:^{
       [_data addObjectsFromArray:newData];
       NSArray *addedIndexPaths = [self indexPathsForObjects:newData];
-      [_collectionView insertItemsAtIndexPaths:addedIndexPaths];
+      [_collectionNode insertItemsAtIndexPaths:addedIndexPaths];
     } completion:completion];
   });
 }
@@ -142,25 +141,18 @@ static const CGFloat kVerticalSectionPadding = 20.0f;
   return indexPaths;
 }
 
-- (void)viewWillLayoutSubviews
-{
-  _collectionView.frame = self.view.bounds;
-}
-
-
 - (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
-  [_collectionView.collectionViewLayout invalidateLayout];
+  [_collectionNode.view.collectionViewLayout invalidateLayout];
 }
 
 - (void)reloadTapped
 {
-  [_collectionView reloadData];
+  [_collectionNode reloadData];
 }
 
-#pragma mark -
-#pragma mark ASCollectionView data source.
+#pragma mark - ASCollectionNodeDelegate / ASCollectionNodeDataSource
 
-- (ASCellNodeBlock)collectionView:(ASCollectionView *)collectionView nodeBlockForItemAtIndexPath:(NSIndexPath *)indexPath
+- (ASCellNodeBlock)collectionNode:(ASCollectionNode *)collectionNode nodeBlockForItemAtIndexPath:(NSIndexPath *)indexPath
 {
   ItemViewModel *viewModel = _data[indexPath.item];
   return ^{
@@ -168,7 +160,8 @@ static const CGFloat kVerticalSectionPadding = 20.0f;
   };
 }
 
-- (ASCellNode *)collectionView:(UICollectionView *)collectionView nodeForSupplementaryElementOfKind:(nonnull NSString *)kind atIndexPath:(nonnull NSIndexPath *)indexPath {
+- (ASCellNode *)collectionNode:(ASCollectionNode *)collectionNode nodeForSupplementaryElementOfKind:(NSString *)kind atIndexPath:(NSIndexPath *)indexPath
+{
   if ([kind isEqualToString:UICollectionElementKindSectionHeader] && indexPath.section == 0) {
     return [[BlurbNode alloc] init];
   } else if ([kind isEqualToString:UICollectionElementKindSectionFooter] && indexPath.section == 0) {
@@ -177,23 +170,8 @@ static const CGFloat kVerticalSectionPadding = 20.0f;
   return nil;
 }
 
-- (CGSize)collectionView:(ASCollectionView *)collectionView layout:(UICollectionViewLayout *)collectionViewLayout referenceSizeForHeaderInSection:(NSInteger)section {
-  if (section == 0) {
-    CGFloat width = CGRectGetWidth(self.view.frame) - 2 * kHorizontalSectionPadding;
-    return CGSizeMake(width, [BlurbNode desiredHeightForWidth:width]);
-  }
-  return CGSizeZero;
-}
-
-- (CGSize)collectionView:(ASCollectionView *)collectionView layout:(UICollectionViewLayout *)collectionViewLayout referenceSizeForFooterInSection:(NSInteger)section {
-  if (section == 0) {
-    CGFloat width = CGRectGetWidth(self.view.frame);
-    return CGSizeMake(width, [LoadingNode desiredHeightForWidth:width]);
-  }
-  return CGSizeZero;
-}
-
-- (ASSizeRange)collectionView:(ASCollectionView *)collectionView constrainedSizeForNodeAtIndexPath:(NSIndexPath *)indexPath {
+- (ASSizeRange)collectionNode:(ASCollectionNode *)collectionNode constrainedSizeForItemAtIndexPath:(NSIndexPath *)indexPath
+{
   CGFloat collectionViewWidth = CGRectGetWidth(self.view.frame) - 2 * kHorizontalSectionPadding;
   CGFloat oneItemWidth = [ItemNode preferredViewSize].width;
   NSInteger numColumns = floor(collectionViewWidth / oneItemWidth);
@@ -206,28 +184,17 @@ static const CGFloat kVerticalSectionPadding = 20.0f;
   return ASSizeRangeMake(itemSize, itemSize);
 }
 
-- (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section
+- (NSInteger)collectionNode:(ASCollectionNode *)collectionNode numberOfItemsInSection:(NSInteger)section
 {
   return [_data count];
 }
 
-- (NSInteger)numberOfSectionsInCollectionView:(UICollectionView *)collectionView
+- (NSInteger)numberOfSectionsInCollectionNode:(ASCollectionNode *)collectionNode
 {
   return 1;
 }
 
-- (void)collectionViewLockDataSource:(ASCollectionView *)collectionView
-{
-  // lock the data source
-  // The data source should not be change until it is unlocked.
-}
-
-- (void)collectionViewUnlockDataSource:(ASCollectionView *)collectionView
-{
-  // unlock the data source to enable data source updating.
-}
-
-- (void)collectionView:(UICollectionView *)collectionView willBeginBatchFetchWithContext:(ASBatchContext *)context
+- (void)collectionNode:(ASCollectionNode *)collectionNode willBeginBatchFetchWithContext:(ASBatchContext *)context
 {
   NSLog(@"fetch additional content");
   [self fetchMoreCatsWithCompletion:^(BOOL finished){
@@ -235,13 +202,24 @@ static const CGFloat kVerticalSectionPadding = 20.0f;
   }];
 }
 
-- (UIEdgeInsets)collectionView:(ASCollectionView *)collectionView layout:(UICollectionViewLayout *)collectionViewLayout insetForSectionAtIndex:(NSInteger)section {
-  return UIEdgeInsetsMake(kVerticalSectionPadding, kHorizontalSectionPadding, kVerticalSectionPadding, kHorizontalSectionPadding);
+#pragma mark - ASCollectionDelegateFlowLayout
+
+- (ASSizeRange)collectionNode:(ASCollectionNode *)collectionNode sizeRangeForHeaderInSection:(NSInteger)section
+{
+  if (section == 0) {
+    return ASSizeRangeUnconstrained;
+  } else {
+    return ASSizeRangeZero;
+  }
 }
 
--(void)dealloc
+- (ASSizeRange)collectionNode:(ASCollectionNode *)collectionNode sizeRangeForFooterInSection:(NSInteger)section
 {
-  NSLog(@"ViewController is deallocing");
+  if (section == 0) {
+    return ASSizeRangeUnconstrained;
+  } else {
+    return ASSizeRangeZero;
+  }
 }
 
 @end

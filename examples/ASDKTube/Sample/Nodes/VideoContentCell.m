@@ -47,7 +47,7 @@
 
     _titleNode = [[ASTextNode alloc] init];
     _titleNode.attributedText = [[NSAttributedString alloc] initWithString:_videoModel.title attributes:[self titleNodeStringOptions]];
-    _titleNode.style.flexGrow = YES;
+    _titleNode.style.flexGrow = 1.0;
     [self addSubnode:_titleNode];
 
     _avatarNode = [[ASNetworkImageNode alloc] init];
@@ -69,7 +69,7 @@
     _muteButtonNode.style.height = ASDimensionMakeWithPoints(22.0);
     [_muteButtonNode addTarget:self action:@selector(didTapMuteButton) forControlEvents:ASControlNodeEventTouchUpInside];
 
-    _videoPlayerNode = [[ASVideoPlayerNode alloc] initWithUrl:_videoModel.url loadAssetWhenNodeBecomesVisible:YES];
+    _videoPlayerNode = [[ASVideoPlayerNode alloc] initWithURL:_videoModel.url];
     _videoPlayerNode.delegate = self;
     _videoPlayerNode.backgroundColor = [UIColor blackColor];
     [self addSubnode:_videoPlayerNode];
@@ -126,9 +126,9 @@
 - (void)setMuteButtonIcon
 {
   if (_videoPlayerNode.muted) {
-    [_muteButtonNode setImage:[UIImage imageNamed:@"ico-mute"] forState:ASControlStateNormal];
+    [_muteButtonNode setImage:[UIImage imageNamed:@"ico-mute"] forState:UIControlStateNormal];
   } else {
-    [_muteButtonNode setImage:[UIImage imageNamed:@"ico-unmute"] forState:ASControlStateNormal];
+    [_muteButtonNode setImage:[UIImage imageNamed:@"ico-unmute"] forState:UIControlStateNormal];
   }
 }
 
@@ -142,7 +142,6 @@
 - (void)didTapVideoPlayerNode:(ASVideoPlayerNode *)videoPlayer
 {
   if (_videoPlayerNode.playerState == ASVideoNodePlayerStatePlaying) {
-    NSLog(@"TRANSITION");
     _videoPlayerNode.controlsDisabled = !_videoPlayerNode.controlsDisabled;
     [_videoPlayerNode pause];
   } else {
@@ -184,7 +183,7 @@
 - (ASLayoutSpec*)videoPlayerNodeLayoutSpec:(ASVideoPlayerNode *)videoPlayer forControls:(NSDictionary *)controls forMaximumSize:(CGSize)maxSize
 {
   ASLayoutSpec *spacer = [[ASLayoutSpec alloc] init];
-  spacer.style.flexGrow = YES;
+  spacer.style.flexGrow = 1.0;
 
   UIEdgeInsets insets = UIEdgeInsetsMake(10.0, 10.0, 10.0, 10.0);
 
@@ -193,7 +192,7 @@
     scrubber.style.height = ASDimensionMakeWithPoints(44.0);
     scrubber.style.minWidth = ASDimensionMakeWithPoints(0.0);
     scrubber.style.maxWidth = ASDimensionMakeWithPoints(maxSize.width);
-    scrubber.style.flexGrow = YES;
+    scrubber.style.flexGrow = 1.0;
   }
 
   NSArray *controlBarControls = [self controlsForControlBar:controls];
